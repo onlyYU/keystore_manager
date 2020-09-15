@@ -1,0 +1,23 @@
+name: lm_keystore_manager
+description: Manage and protect the 'keystore' private key file, support the 'keystore' structure and address structure defined by ECDSA / bip32 / bip39 / bip44.
+version: 1.0.0
+homepage: https://github.com/LmFlutterSDK/keystore_manager
+
+environment:
+  sdk: ">=2.2.2 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  web3dart:
+    git:
+      url: https://github.com/LmFlutterSDK/web3dart.git
+      ref: v1.0.0
+  path_provider:
+  bip39:
+  bip32:
+  http:
+  typed_data:
+
+dev_dependencies:
+  test:
