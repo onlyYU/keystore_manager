@@ -451,7 +451,7 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
       /// 使用AES加密存储
       final entropy = BIP39.mnemonicToEntropy(memories);
       final encryptoMemorise =
-          aesCbcEncrypt(wallet.privateKey.privateKey, utf8.encode(entropy) as Uint8List);
+          aesCbcEncrypt(wallet.privateKey.privateKey, Uint8List.fromList(utf8.encode(entropy)));
       final memoFile = File(memoriesPath);
 
       memoFile.createSync();
@@ -513,7 +513,7 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
 
   /// Private method
 
-  static Uint8List iv = utf8.encode('limowallet.token') as Uint8List;
+  static Uint8List iv = Uint8List.fromList(utf8.encode('limowallet.token')) ;
   static Uint8List aesCbcEncrypt(Uint8List key, Uint8List paddedPlaintext) {
     // Create a CBC block cipher with AES, and initialize with key and IV
     final cbc = CBCBlockCipher(AESEngine())
