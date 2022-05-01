@@ -58,10 +58,10 @@ abstract class Web3KeychainManagerInterface {
 
 class Web3KeychainManager implements Web3KeychainManagerInterface {
   /// 存储的目录
-  static Directory _keystoreStorageRootDirectory;
+  static late Directory _keystoreStorageRootDirectory;
 
   /// 全局单例，只需要调用一次，重复调用没有效果
-  static Future<void> init({String rootPath}) async {
+  static Future<void> init({String? rootPath}) async {
     if (_instance == null) {
       if (rootPath == null) {
         if (Platform.isIOS || Platform.isAndroid) {
@@ -70,7 +70,7 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
       }
 
       _keystoreStorageRootDirectory =
-          Directory(path.join(rootPath, "keychain"));
+          Directory(path.join(rootPath!, "keychain"));
 
       if (!_keystoreStorageRootDirectory.existsSync()) {
         _keystoreStorageRootDirectory.createSync();
@@ -84,7 +84,7 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
     assert(_instance != null,
         "call Web3KeychainManager.Init() befor getInstance()");
 
-    return _instance;
+    return _instance!;
   }
 
   /// 当前设备下对所有地址
@@ -119,7 +119,7 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
   /// 倒入keystore
   Future<EthereumAddress> importKeystore(String json, String pwd) async {
     /// 不允许空密码的keystore倒入
-    if (pwd == null || pwd.length <= 0) {
+    if (pwd.length <= 0) {
       throw Web3KeychainManagerError.errorMissPassword;
     }
 
@@ -142,7 +142,7 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
   /// 倒入私钥
   Future<EthereumAddress> importPrivateKey(
       String pkHex, String encryptoPwd) async {
-    if (encryptoPwd == null || encryptoPwd.length <= 0) {
+    if (encryptoPwd.length <= 0) {
       throw Web3KeychainManagerError.errorMissPassword;
     }
 
@@ -165,7 +165,7 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
   /// 倒入助记词
   Future<EthereumAddress> importMemories(
       String mnemonic, String encryptoPwd) async {
-    if (encryptoPwd == null || encryptoPwd.length <= 0) {
+    if (encryptoPwd.length <= 0) {
       throw Web3KeychainManagerError.errorMissPassword;
     }
 
@@ -175,7 +175,10 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
 
     final account = bip32.derivePath(defaultDerivePath);
 
-    final ks = EthPrivateKey(account.privateKey);
+    if(account.isNeutered()){
+      throw Web3KeychainManagerError.duplicateAccount;
+    }
+    final ks = EthPrivateKey(account.privateKey!);
 
     /// 创建keystore文件
     final wallet = Wallet.createNew(ks, encryptoPwd, Random.secure());
@@ -195,7 +198,7 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
 
   ///生成新钱包
   Future<String> newWallet(String pwd,
-      {String pk, String mns, String ks}) async {
+      {String? pk, String? mns, String? ks}) async {
     String address = '';
     if (null != pk) {
       address = (await importPrivateKey(pk.trim(), pwd)).hex;
@@ -211,7 +214,7 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
 
   /// 指定地址导出Keystore文件
   Future<String> exportKeystore(EthereumAddress address, String pwd) async {
-    if (pwd == null || pwd.length <= 0) {
+    if (pwd.length <= 0) {
       throw Web3KeychainManagerError.errorMissPassword;
     }
 
@@ -294,7 +297,7 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
 
   Future<Uint8List> signMessage(
       EthereumAddress address, String content, String pwd,
-      {int chainID}) async {
+      {int? chainID}) async {
     final wallet = await this._walletOfAddress(address, pwd);
 
     final contentBytes = Uint8List.fromList(utf8.encode(content));
@@ -329,8 +332,10 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
     final bip32 = BIP32.fromSeed(bip39Seed);
 
     final account = bip32.derivePath(defaultDerivePath);
-
-    final ks = EthPrivateKey(account.privateKey);
+    if(account.isNeutered()){
+      throw Web3KeychainManagerError.duplicateAccount;
+    }
+    final ks = EthPrivateKey(account.privateKey!);
 
     /// 创建keystore文件
     final wallet = Wallet.createNew(ks, pwd, Random.secure());
@@ -406,7 +411,7 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
     this.rescanStorage();
   }
 
-  Future<bool> _storageWallet(Wallet wallet, {String memories}) async {
+  Future<bool> _storageWallet(Wallet wallet, {String? memories}) async {
     if (memories == null) {
       return compute(_isolateStorageWallet, [
         wallet,
@@ -425,8 +430,8 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
   static Future<bool> _isolateStorageWallet(List<dynamic> parmas) {
     final Wallet wallet = parmas[0] as Wallet;
     final File ksFile = File(parmas[1] as String);
-    String memories;
-    String memoriesPath;
+    String? memories;
+    String? memoriesPath;
     if (parmas.length == 4) {
       memories = parmas[2] as String;
       memoriesPath = parmas[3] as String;
@@ -442,11 +447,11 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
     ksFile.writeAsStringSync(wallet.toJson());
 
     /// 写入加密的助记词
-    if (memories != null) {
+    if (memories != null && memoriesPath!=null) {
       /// 使用AES加密存储
       final entropy = BIP39.mnemonicToEntropy(memories);
       final encryptoMemorise =
-          aesCbcEncrypt(wallet.privateKey.privateKey, utf8.encode(entropy));
+          aesCbcEncrypt(wallet.privateKey.privateKey, utf8.encode(entropy) as Uint8List);
       final memoFile = File(memoriesPath);
 
       memoFile.createSync();
@@ -456,10 +461,10 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
     return Future.value(true);
   }
 
-  static Future<Wallet> _isolateWalletOfAddress(List<dynamic> parmas) async {
-    final EthereumAddress address = parmas[0] as EthereumAddress;
-    final String pwd = parmas[1] as String;
-    final String ksFilePath = parmas[2] as String;
+  static Future<Wallet> _isolateWalletOfAddress(List<dynamic> params) async {
+    final EthereumAddress address = params[0] as EthereumAddress;
+    final String pwd = params[1] as String;
+    final String ksFilePath = params[2] as String;
 
     final ksFile = File(ksFilePath);
 
@@ -478,12 +483,10 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
   Future<Wallet> _walletOfAddress(EthereumAddress address, String pwd) {
     // 处理缓存
     final cache = _walletCacher[address];
-    if (cache != null) {
-      if (cache.pwdHash == bytesToHex(keccakUtf8(pwd))) {
-        return Future.value(cache.wallet);
-      } else {
-        throw Web3KeychainManagerError.errorInvaildPassword;
-      }
+    if (cache.pwdHash == bytesToHex(keccakUtf8(pwd))) {
+      return Future.value(cache.wallet);
+    } else {
+      throw Web3KeychainManagerError.errorInvaildPassword;
     }
 
     return compute(_isolateWalletOfAddress,
@@ -504,16 +507,16 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
         address.toString().toLowerCase() + ".memo");
   }
 
-  List<EthereumAddress> _addresses = List<EthereumAddress>();
+  List<EthereumAddress> _addresses = [];
 
-  static Web3KeychainManager _instance;
+  static Web3KeychainManager? _instance;
 
   /// Private method
 
-  static Uint8List iv = utf8.encode('limowallet.token');
+  static Uint8List iv = utf8.encode('limowallet.token') as Uint8List;
   static Uint8List aesCbcEncrypt(Uint8List key, Uint8List paddedPlaintext) {
     // Create a CBC block cipher with AES, and initialize with key and IV
-    final cbc = CBCBlockCipher(AESFastEngine())
+    final cbc = CBCBlockCipher(AESEngine())
       ..init(true, ParametersWithIV(KeyParameter(key), iv)); // true=encrypt
 
     // Encrypt the plaintext block-by-block
@@ -530,7 +533,7 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
 
   static Uint8List aesCbcDecrypt(Uint8List key, Uint8List cipherText) {
     // Create a CBC block cipher with AES, and initialize with key and IV
-    final cbc = CBCBlockCipher(AESFastEngine())
+    final cbc = CBCBlockCipher(AESEngine())
       ..init(false, ParametersWithIV(KeyParameter(key), iv)); // false=decrypt
 
     // Decrypt the cipherText block-by-block
