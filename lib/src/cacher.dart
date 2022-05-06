@@ -6,20 +6,20 @@ class Cacher<K,V> {
 
     Map<K, V> _cache = Map();
 
-    late CacherCreateFunction<K,V> createFunction;
+    CacherCreateFunction<K,V>? createFunction;
 
     // 判断是否存在
     bool contains(K key) => _cache.containsKey(key) && _cache[key] != null;
 
     // 直接读取
-    V operator [](K key) => getCache(key);
+    V? operator [](K key) => getCache(key);
 
-    V getCache(K key) {
-        if ( !contains(key) ) {
-            _cache[key] = createFunction(key);
+    V? getCache(K key) {
+        if ( !contains(key) && createFunction != null ) {
+            _cache[key] = createFunction!(key);
         }
 
-        return _cache[key]!;
+        return _cache[key];
     }
 
     void setCache(K key, V value) {

@@ -483,8 +483,8 @@ class Web3KeychainManager implements Web3KeychainManagerInterface {
   Future<Wallet> _walletOfAddress(EthereumAddress address, String pwd) {
     // 处理缓存
     final cache = _walletCacher[address];
-    if (cache.pwdHash == bytesToHex(keccakUtf8(pwd))) {
-      return Future.value(cache.wallet);
+    if (cache?.pwdHash == bytesToHex(keccakUtf8(pwd))) {
+      return Future.value(cache?.wallet);
     } else {
       throw Web3KeychainManagerError.errorInvaildPassword;
     }
